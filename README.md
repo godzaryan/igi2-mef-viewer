@@ -1,4 +1,4 @@
-# IGI 2 MEF Viewer (Standalone & Portable)
+# IGI 2 MEF Viewer (Standalone & Portable) [v1.4.0]
 
 An OpenGL-based 3D model viewer for **IGI 2: Covert Strike** binary `.mef` files.
 
