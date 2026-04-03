@@ -37,7 +37,6 @@ except ImportError:
 try:
     from igi2mef import parse_mef, quick_validate, MefModel, MefDebugParams
 except ImportError:
-    # Attempt local src fallback during dev
     _here = Path(__file__).parent
     if str(_here.parent) not in sys.path:
         sys.path.insert(0, str(_here.parent))
@@ -88,9 +87,10 @@ QToolBar{background:#080814;border-bottom:1px solid #1c1c38;
 QToolButton{background:transparent;color:#8090a8;border:none;
     border-radius:3px;padding:4px 10px;font-size:12px;}
 QToolButton:hover{background:#141430;color:#dde6f0;}
-QToolButton:checked{background:#162840;color:#60c8ff;}
-QStatusBar{background:#080814;color:#506070;border-top:1px solid #1c1c38;font-size:11px;}
+QToolButton:checked{background:#1a4a8a;color:#ffffff;border:1px solid #00aaff;}
+QStatusBar{background:#080814;color:#dde6f0;border-top:1px solid #1c1c38;font-size:11px;min-height:24px;}
 QStatusBar::item{border:none;}
+QStatusBar QLabel{padding:0 10px;border-right:1px solid #1c1c38;color:#b0c0d8;}
 QScrollBar:vertical{background:#0d0d1a;width:7px;margin:0;}
 QScrollBar::handle:vertical{background:#252548;border-radius:3px;min-height:24px;}
 QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical{height:0;}
@@ -156,9 +156,7 @@ class MEFViewport(QOpenGLWidget):
     fps_changed = pyqtSignal(float)
     THUMB_SZ = 128
     def __init__(self, parent=None):
-        fmt = QSurfaceFormat(); fmt.setVersion(3, 3); fmt.setProfile(QSurfaceFormat.CoreProfile)
-        fmt.setDepthBufferSize(24); fmt.setSamples(4)
-        super().__init__(parent); self.setFormat(fmt)
+        super().__init__(parent)
         self.cam = OrbitCamera(); self.current_model: Optional[MefModel] = None; self.overlays = OverlayFlags()
         self._ctx, self._prog, self._flat_prog, self._grid_vao, self._grid_n, self._gpu_cache, self._thumb_fbo = None, None, None, None, 0, None, None
         self._overlay_cache: Dict[str, ModelOverlays] = {}
@@ -213,49 +211,55 @@ class MEFViewport(QOpenGLWidget):
             if ov.bone_lines: fp["u_color"].value = (1.0, 0.85, 0.2, 1.0); ov.bone_lines[0].render(moderngl.LINES, vertices=ov.bone_lines[1])
             if ov.bone_joints: fp["u_color"].value = (1.0, 0.4, 0.1, 1.0); self._ctx.point_size = 8.0; ov.bone_joints[0].render(moderngl.POINTS, vertices=ov.bone_joints[1])
             self._ctx.enable(moderngl.DEPTH_TEST)
-        if self.overlays.magic_verts and ov.magic_pts:
-            fp["u_color"].value = (0.0, 1.0, 0.9, 1.0); self._ctx.point_size = 7.0; ov.magic_pts[0].render(moderngl.POINTS, vertices=ov.magic_pts[1])
+        if self.overlays.magic_verts and ov.magic_pts: fp["u_color"].value = (0.0, 1.0, 0.9, 1.0); self._ctx.point_size = 7.0; ov.magic_pts[0].render(moderngl.POINTS, vertices=ov.magic_pts[1])
         if self.overlays.collision and ov.coll_wire:
             fp["u_color"].value = (1.0, 0.2, 0.2, 0.8)
             for vao, n in ov.coll_wire: vao.render(moderngl.LINES, vertices=n)
         if self.overlays.portals and ov.portal_wire: fp["u_color"].value = (1.0, 1.0, 0.2, 0.9); ov.portal_wire[0].render(moderngl.LINES, vertices=ov.portal_wire[1])
-        if self.overlays.glow and ov.glow_pts:
-            fp["u_color"].value = (1.0, 0.7, 0.1, 1.0); self._ctx.point_size = 10.0; ov.glow_pts[0].render(moderngl.POINTS, vertices=ov.glow_pts[1])
+        if self.overlays.glow and ov.glow_pts: fp["u_color"].value = (1.0, 0.7, 0.1, 1.0); self._ctx.point_size = 10.0; ov.glow_pts[0].render(moderngl.POINTS, vertices=ov.glow_pts[1])
 
     def _build_overlays(self, model: MefModel):
         key, ov = str(model.path), ModelOverlays()
         res = build_bone_overlay(self._ctx, self._flat_prog, model)
-        if res: ov.bone_lines, ov.bone_joints = (res[0], res[1]), (res[2], res[3])
-        if model.magic_vertices: ov.magic_pts = build_points_overlay(self._ctx, self._flat_prog, [mv.position for mv in model.magic_vertices])
+        if res:
+            ov.bone_lines, ov.bone_joints = (res[0], res[1]), (res[2], res[3])
+        if model.magic_vertices:
+            ov.magic_pts = build_points_overlay(self._ctx, self._flat_prog, [mv.position for mv in model.magic_vertices])
         ov.coll_wire = []
         for cm in model.collision:
             r = build_lines_overlay(self._ctx, self._flat_prog, cm.vertices, cm.faces)
-            if r: ov.coll_wire.append(r)
+            if r:
+                ov.coll_wire.append(r)
         if model.portals:
             r = build_lines_overlay(self._ctx, self._flat_prog, model.portals[0].vertices, model.portals[0].faces)
-            if r: ov.portal_wire = r
-        if model.glow_sprites: ov.glow_pts = build_points_overlay(self._ctx, self._flat_prog, [gs.position for gs in model.glow_sprites])
+            if r:
+                ov.portal_wire = r
+        if model.glow_sprites:
+            ov.glow_pts = build_points_overlay(self._ctx, self._flat_prog, [gs.position for gs in model.glow_sprites])
         self._overlay_cache[key] = ov
 
     def queue_thumbnail(self, model: MefModel):
         key = str(model.path)
-        if key not in self._thumb_cache and model not in self._thumb_queue: self._thumb_queue.append(model)
+        if key not in self._thumb_cache and model not in self._thumb_queue:
+            self._thumb_queue.append(model)
         self.update()
 
     def _process_one_thumb(self, screen_fbo):
         if not self._thumb_queue or not self._thumb_fbo: return
-        model = self._thumb_queue.pop(0); key = str(model.path)
+        model = self._thumb_queue.pop(0)
+        key = str(model.path)
         if key in self._thumb_cache: return
         sz = self.THUMB_SZ; self._thumb_fbo.use(); self._ctx.viewport = (0, 0, sz, sz); self._ctx.clear(0.05, 0.06, 0.13, 1.0)
         c = OrbitCamera(); c.fit(model.center, model.radius); mvp, eye = c.matrices(sz, sz)
         self._prog["u_mvp"].write(gl_bytes(mvp)); self._prog["u_model"].write(gl_bytes(np.eye(4, dtype="f4"))); self._prog["u_cam"].value = tuple(map(float, eye))
         gpu = self._gpu_cache.get(model)
-        if gpu: self._ctx.wireframe = False; gpu.draw(self._prog)
+        if gpu:
+            self._ctx.wireframe = False
+            gpu.draw(self._prog)
         raw = self._thumb_fbo.read(components=4, dtype="f1", clamp=True); img = QImage(bytes(raw), sz, sz, sz * 4, QImage.Format_RGBA8888).mirrored(False, True)
         pm = QPixmap.fromImage(img).scaled(96, 72, Qt.KeepAspectRatio, Qt.SmoothTransformation); self._thumb_cache[key] = pm; self.thumbnail_ready.emit(key, pm)
         screen_fbo.use(); self._ctx.viewport = (0, 0, self.width(), self.height())
-        if self._thumb_queue:
-            self.update()
+        if self._thumb_queue: self.update()
 
     def mousePressEvent(self, e): self._drag_btn, self._drag_last = e.button(), e.pos()
     def mouseMoveEvent(self, e):
@@ -297,8 +301,7 @@ class MEFViewport(QOpenGLWidget):
     def _refresh_model(self):
         if not self.current_model: return
         path = Path(self.current_model.path)
-        if self._gpu_cache:
-            self._gpu_cache.invalidate(str(path))
+        if self._gpu_cache: self._gpu_cache.invalidate(str(path))
         self._overlay_cache.pop(str(path), None); self.current_model = parse_mef(path, debug=self.debug_params)
 
 # ── Panels ────────────────────────────────────────────────────────────────────
@@ -339,8 +342,7 @@ class FileListPanel(QWidget):
             item.setHidden(lo != "" and lo not in item.data(Qt.UserRole)["name"].lower())
     def _on_click(self, item: QListWidgetItem):
         d = item.data(Qt.UserRole)
-        if d and d["model"] and d["model"].valid:
-            self.model_selected.emit(d["model"])
+        if d and d["model"] and d["model"].valid: self.model_selected.emit(d["model"])
 
 class InfoPanel(QWidget):
     def __init__(self, parent=None):
@@ -394,7 +396,8 @@ class MainWindow(QMainWindow):
 
         for act in tb.actions():
             w = tb.widgetForAction(act)
-            if w: w.setCursor(Qt.PointingHandCursor)
+            if w:
+                w.setCursor(Qt.PointingHandCursor)
 
         splitter = QSplitter(Qt.Horizontal); self.setCentralWidget(splitter)
         self._vp = MEFViewport(); self._file_panel = FileListPanel(self._vp); self._info_panel = InfoPanel()
@@ -403,8 +406,8 @@ class MainWindow(QMainWindow):
         splitter.setStretchFactor(1, 1); self._file_panel.setFixedWidth(270); self._info_panel.setFixedWidth(320)
 
         self._sb_folder = QLabel("No folder loaded"); self._sb_model = QLabel(""); self._sb_fps = QLabel("0 fps")
-        for w in [self._sb_folder, self._sb_model, self._sb_fps]: self.statusBar().addPermanentWidget(w)
-        self.statusBar().addPermanentWidget(QLabel(), 1); self._current_folder: Optional[Path] = None
+        self.statusBar().addWidget(self._sb_folder); self.statusBar().addWidget(self._sb_model, 1); self.statusBar().addPermanentWidget(self._sb_fps)
+        self._current_folder: Optional[Path] = None
 
         # Hotkeys
         QShortcut(QKeySequence("W"), self, self._act_wire.toggle); QShortcut(QKeySequence("G"), self, self._act_grid.toggle)
@@ -433,8 +436,7 @@ class MainWindow(QMainWindow):
         self._current_folder = folder; self._sb_folder.setText(f"  {folder}  "); self._file_panel.load_folder(folder)
     def _reload(self):
         if self._current_folder: 
-            if self._vp._gpu_cache:
-                self._vp._gpu_cache._cache.clear()
+            if self._vp._gpu_cache: self._vp._gpu_cache._cache.clear()
             self._vp._overlay_cache.clear(); self._load_folder(self._current_folder)
 
     def _on_model_selected(self, m: MefModel):
@@ -445,7 +447,7 @@ class MainWindow(QMainWindow):
         if m.collision: pre += f"🔺{len(m.collision)} "
         self._sb_model.setText(f"  {m.name}  ·  {m.total_vertices:,} verts  ·  {m.total_triangles:,} tris  {pre} ")
 
-    def _on_fps(self, fps: float): self._sb_fps.setText(f"  {fps:.0f} fps  ")
+    def _on_fps(self, fps: float): self._sb_fps.setText(f"  {fps:.1f} fps  ")
 
     def dragEnterEvent(self, e): 
         if e.mimeData().hasUrls(): e.accept()
@@ -457,5 +459,7 @@ class MainWindow(QMainWindow):
             elif p.is_dir(): self._load_folder(p)
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv); app.setApplicationName("IGI 2 MEF Viewer"); app.setStyleSheet(STYLE)
+    fmt = QSurfaceFormat(); fmt.setVersion(3, 3); fmt.setProfile(QSurfaceFormat.CoreProfile); fmt.setDepthBufferSize(24); fmt.setSamples(4)
+    QSurfaceFormat.setDefaultFormat(fmt)
+    app = QApplication(sys.argv); app.setApplicationName("IGI 2 MEF Viewer"); app.setOrganizationName("Antigravity Toolchain"); app.setStyleSheet(STYLE)
     win = MainWindow(); win.show(); sys.exit(app.exec_())
