@@ -9,16 +9,7 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import moderngl
-# ── Import Standalone Static Parser ─────────────────────────────────────────
-import sys
-from pathlib import Path
-_here = Path(__file__).parent
-if str(_here) not in sys.path:
-    sys.path.insert(0, str(_here))
-try:
-    from igi2mef import MefModel
-except ImportError:
-    from mef_parser_static import MefModel # Fallback for local dev if not installed
+from igi2mef import MefModel, MefBone, MagicVertex, Portal, CollisionMesh, GlowSprite
 
 # ── GLSL Shaders ─────────────────────────────────────────────────────────────
 VERT = """
