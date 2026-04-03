@@ -15,7 +15,10 @@ from pathlib import Path
 _here = Path(__file__).parent
 if str(_here) not in sys.path:
     sys.path.insert(0, str(_here))
-from mef_parser_static import MefModel
+try:
+    from igi2mef import MefModel
+except ImportError:
+    from mef_parser_static import MefModel # Fallback for local dev if not installed
 
 # ── GLSL Shaders ─────────────────────────────────────────────────────────────
 VERT = """
