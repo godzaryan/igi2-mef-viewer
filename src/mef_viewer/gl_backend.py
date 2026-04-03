@@ -9,14 +9,13 @@ from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import moderngl
-
-# ── Try to import igi2mef ────────────────────────────────────────────────────
+# ── Import Standalone Static Parser ─────────────────────────────────────────
 import sys
 from pathlib import Path
-_root = Path(__file__).parent.parent
-if str(_root) not in sys.path:
-    sys.path.insert(0, str(_root))
-from igi2mef.models import MefModel
+_here = Path(__file__).parent
+if str(_here) not in sys.path:
+    sys.path.insert(0, str(_here))
+from mef_parser_static import MefModel
 
 # ── GLSL Shaders ─────────────────────────────────────────────────────────────
 VERT = """
