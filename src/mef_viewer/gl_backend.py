@@ -152,6 +152,11 @@ class GpuCache:
             try: old.release()
             except: pass
         return gpu
+    def invalidate(self, path_str: str):
+        if path_str in self._cache:
+            try: self._cache[path_str].release()
+            except: pass
+            del self._cache[path_str]
 
 # ── Builders ──────────────────────────────────────────────────────────────────
 def build_grid(ctx, prog, half=10):

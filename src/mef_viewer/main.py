@@ -298,7 +298,7 @@ class MEFViewport(QOpenGLWidget):
     def mousePressEvent(self, e): self._drag_btn, self._drag_last = e.button(), e.pos()
     def mouseMoveEvent(self, e):
         d = e.pos() - self._drag_last; self._drag_last = e.pos()
-        if self._drag_btn == Qt.LeftButton: self.cam.orbit(d.x(), d.y())
+        if self._drag_btn == Qt.LeftButton: self.cam.orbit(d.x(), d.y()); self.update()
         elif self._drag_btn == Qt.RightButton: self.cam.pan(d.x(), d.y()); self.update()
     def mouseReleaseEvent(self, e): self._drag_btn = None
     def mouseDoubleClickEvent(self, e):
@@ -335,7 +335,7 @@ class MEFViewport(QOpenGLWidget):
     def _refresh_model(self):
         if not self.current_model: return
         path = Path(self.current_model.path)
-        if self._gpu_cache: self._gpu_cache._cache.pop(str(path), None)
+        if self._gpu_cache: self._gpu_cache.invalidate(str(path))
         self._overlay_cache.pop(str(path), None)
         self.current_model = parse_mef(path, debug=self.debug_params)
 
