@@ -105,10 +105,11 @@ QTextEdit{background:#080814;border:none;color:#c0ccd8;font-family:Consolas,'Cou
 # ── Parse worker ──────────────────────────────────────────────────────────────
 class _ParseWorker(QThread):
     done = pyqtSignal(object)
-    def __init__(self, paths: List[Path], cache: Dict):
+    def __init__(self, paths: List[Path], cache: Dict, debug_params: MefDebugParams):
         super().__init__()
         self._paths = paths
         self._cache = cache
+        self._debug = debug_params
         self._cancelled = False
     def cancel(self): self._cancelled = True
     def run(self):
@@ -117,7 +118,7 @@ class _ParseWorker(QThread):
                 if self._cancelled: return
                 key = str(p)
                 if key not in self._cache:
-                    self._cache[key] = parse_mef(p)
+                    self._cache[key] = parse_mef(p, debug=self._debug)
                 self.done.emit(self._cache[key])
         except Exception:
             traceback.print_exc()
@@ -186,9 +187,18 @@ class MEFViewport(QOpenGLWidget):
         self._thumb_queue: List[MefModel] = []; self._thumb_cache: Dict[str, QPixmap] = {}
         self._drag_btn = None; self._drag_last = QPoint(); self.wireframe = False; self.show_grid = True
         self._frame_timer = QElapsedTimer(); self._frame_timer.start()
-        self.debug_params = MefDebugParams(); self.scales = [0.01, 0.001, 1/40.96, 1/4096, 1.0]
-        self.swizzles = ["XZY", "XYZ", "YXZ", "YZX", "ZXY", "ZYX"]; self.bone_modes = ["REL", "ABS", "ROOT"]
+        self.debug_params = MefDebugParams()
+        self.scales = [0.01, 0.001, 1/40.96, 1/4096, 1.0]
+        self.swizzles = ["XZY", "XYZ", "YXZ", "YZX", "ZXY", "ZYX"]
+        self.bone_modes = ["REL", "ABS", "ROOT"]
+        
+        # Lock to USER confirmed perfect configuration:
         self.idx_vscale = 0; self.idx_bscale = 0; self.idx_swizzle = 0; self.idx_bmode = 0
+        self.debug_params.v_scale = self.scales[self.idx_vscale]
+        self.debug_params.b_scale = self.scales[self.idx_bscale]
+        self.debug_params.swizzle_mode = self.swizzles[self.idx_swizzle]
+        self.debug_params.bone_mode = self.bone_modes[self.idx_bmode]
+        
         self.setFocusPolicy(Qt.StrongFocus)
 
     def initializeGL(self):
@@ -349,7 +359,7 @@ class FileListPanel(QWidget):
             d = {"path": str(path), "name": path.name, "pixmap": self._vp._thumb_cache.get(str(path)), "info": "parsing…", "model": None}
             item = QListWidgetItem(); item.setData(Qt.UserRole, d); item.setSizeHint(QSize(0, _ThumbDelegate.H)); self._list.addItem(item)
         if self._worker: self._worker.cancel(); self._worker.wait()
-        self._worker = _ParseWorker(valid, self._cache); self._worker.done.connect(self._on_parsed); self._worker.start()
+        self._worker = _ParseWorker(valid, self._cache, self._vp.debug_params); self._worker.done.connect(self._on_parsed); self._worker.start()
     def _on_parsed(self, model: MefModel):
         for i in range(self._list.count()):
             item = self._list.item(i); d = item.data(Qt.UserRole)
