@@ -1,0 +1,7 @@
+# Core Library
+numpy>=1.20.0
+
+# GUI Application
+PyQt5>=5.15.0
+moderngl>=5.6.0
+PyInstaller>=5.0.0
